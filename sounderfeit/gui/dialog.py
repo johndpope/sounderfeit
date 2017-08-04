@@ -98,18 +98,12 @@ class Dialog(QDialog):
         self.createDatasetControls()
         self.createGridGroupBox()
 
-        buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-
-        buttonBox.accepted.connect(self.accept)
-        buttonBox.rejected.connect(self.reject)
-
         mainLayout = QVBoxLayout()
         mainLayout.setMenuBar(self.menuBar)
         vLayout = QVBoxLayout()
         vLayout.addWidget(self.audioControls)
         vLayout.addWidget(self.datasetControls)
         vLayout.addWidget(self.gridGroupBox)
-        vLayout.addWidget(buttonBox)
         hLayout = QHBoxLayout()
         vGroupBox = QGroupBox()
         vGroupBox.setLayout(vLayout)

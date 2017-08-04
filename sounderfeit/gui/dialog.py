@@ -14,7 +14,8 @@ from PyQt5.QtWidgets import (QDialog, QMenu, QMenuBar, QGroupBox,
                              QHBoxLayout, QPushButton, QGridLayout,
                              QLabel, QLineEdit, QTextEdit,
                              QFormLayout, QComboBox, QSpinBox,
-                             QDialogButtonBox, QVBoxLayout, QSlider)
+                             QDialogButtonBox, QVBoxLayout, QSlider,
+                             QRadioButton)
 
 
 class Waveform(QGraphicsObject):
@@ -131,6 +132,8 @@ class Dialog(QDialog):
 
     def createAudioControls(self):
         self.audioControls = QGroupBox("Audio")
+        vlayout = QVBoxLayout()
+
         layout = QHBoxLayout()
         button = QPushButton("Play")
         button.clicked.connect(lambda: self.synth.start())
@@ -138,7 +141,19 @@ class Dialog(QDialog):
         button = QPushButton("Stop")
         button.clicked.connect(lambda: self.synth.stop())
         layout.addWidget(button)
-        self.audioControls.setLayout(layout)
+
+        layout2 = QHBoxLayout()
+        button = QRadioButton("Decoder")
+        button.setChecked(True)
+        button.clicked.connect(lambda: self.synth.setMode(0))
+        layout2.addWidget(button)
+        button = QRadioButton("STK Bowed")
+        button.clicked.connect(lambda: self.synth.setMode(1))
+        layout2.addWidget(button)
+
+        vlayout.addLayout(layout)
+        vlayout.addLayout(layout2)
+        self.audioControls.setLayout(vlayout)
 
     def createDatasetControls(self):
         self.datasetControls = QGroupBox("Dataset")

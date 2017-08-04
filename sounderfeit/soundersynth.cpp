@@ -37,6 +37,15 @@ protected:
   std::vector<double> _window;
   int _currentCycle;
 
+  // STK synth
+  Bowed _bowed;
+  const int STK_PRESSURE = 2;
+  const int STK_POSITION = 4;
+  const int STK_VELOCITY = 100;
+  const int STK_FREQUENCY = 101;
+  const int STK_VOLUME = 128;
+  const StkFloat _bowedFreq = 476.5;
+
   // Decoder weight matrices
   std::vector<double> _w3, _w4, _b3, _b4;
   std::vector<double> _hidden, _input;
@@ -59,6 +68,15 @@ public:
 
       const int N=_cycles[0].size(), N1=N-1;
 
+      // Setup STK synth
+      Stk::setSampleRate(48000);
+      _bowed.setFrequency(_bowedFreq);
+      _bowed.controlChange(STK_PRESSURE, 100);
+      _bowed.controlChange(STK_POSITION, 50);
+      _bowed.controlChange(STK_VELOCITY, 150);
+      _bowed.controlChange(STK_VOLUME, 110);
+      _bowed.noteOn(_bowedFreq, 1.0);
+
       // Hamming window
       // https://www.dsprelated.com/freebooks/sasp/Overlap_Add_OLA_STFT_Processing.html
       _window.resize(N);
@@ -71,7 +89,6 @@ public:
   virtual ~Soundersynth() {};
 
   bool start() {
-    Stk::setSampleRate(48000);
     _dac = std::make_shared<RtAudio>();
     RtAudioFormat format = ( sizeof(StkFloat) == 8 ) ? RTAUDIO_FLOAT64 : RTAUDIO_FLOAT32;
     RtAudio::StreamParameters parameters;
@@ -130,7 +147,8 @@ public:
     return _mode;
   }
 
-  void setMode(int index, double value) {
+  void setMode(int index) {
+    _mode = index;
   }
 
   int paramCount() { return 4; }
@@ -374,6 +392,18 @@ public:
 
   void fillAudioOutputBufferSTK(StkFloat *outputBuffer,
                                 unsigned int nBufferFrames) {
+
+    _bowed.controlChange(STK_PRESSURE, _pressure);
+    _bowed.controlChange(STK_POSITION, _position);
+
+    for (unsigned int i=0; i<nBufferFrames; i++)
+    {
+      double out = _bowed.tick() * _volume;
+      if (out >  1.0) out =  1.0;
+      if (out < -1.0) out = -1.0;
+      outputBuffer[i*2+0] = out;
+      outputBuffer[i*2+1] = out;
+    }
   }
 
   void fillAudioOutputBuffer(StkFloat *outputBuffer,

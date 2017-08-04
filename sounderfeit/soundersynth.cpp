@@ -19,17 +19,8 @@ using namespace stk;
 #include <iostream>
 #include <memory>
 
-class Soundersynth;
-
 int tick( void *outputBuffer, void *inputBuffer, unsigned int nBufferFrames,
-          double streamTime, RtAudioStreamStatus status, void *dataPointer )
-{
-  Soundersynth *self = static_cast<Soundersynth*>(dataPointer);
-  StkFloat *out = static_cast<StkFloat*>(outputBuffer);
-  for (unsigned int i=0; i<nBufferFrames; i++)
-    out[i] = ((double)i)/nBufferFrames-0.5;
-  return 0;
-}
+          double streamTime, RtAudioStreamStatus status, void *dataPointer );
 
 class Soundersynth
 {
@@ -43,25 +34,38 @@ protected:
   std::string _dataset;
   std::shared_ptr<RtAudio> _dac;
   std::vector< std::vector<double> > _cycles;
+  std::vector<double> _window;
   int _currentCycle;
 
   // Decoder weight matrices
   std::vector<double> _w3, _w4, _b3, _b4;
   std::vector<double> _hidden, _input;
 
+  // Overlap-add, integrator state
+  unsigned int _cyclePos;
+  double _lastSample;
+
 public:
   Soundersynth()
     : _mode(0), _playing(false), _position(32), _pressure(64)
-    , _volume(0.5), _latent1(0.5)
+    , _volume(0.5), _latent1(0.5), _cyclePos(0), _lastSample(0)
     {
       for (int i=0; i<2; i++) {
         std::vector<double> array;
         array.resize(200);
         _cycles.push_back(array);
-        for (int j=0; j<201; j++)
-          _cycles[i][j] = j%30/30.;
       }
       _currentCycle = 0;
+
+      const int N=_cycles[0].size(), N1=N-1;
+
+      // Hamming window
+      // https://www.dsprelated.com/freebooks/sasp/Overlap_Add_OLA_STFT_Processing.html
+      _window.resize(N);
+      for (int i=0; i < N; i++)
+      {
+        _window[i] = 0.54 - 0.46*cos(2*M_PI*i/N1);
+      };
     }
 
   virtual ~Soundersynth() {};
@@ -72,7 +76,7 @@ public:
     RtAudioFormat format = ( sizeof(StkFloat) == 8 ) ? RTAUDIO_FLOAT64 : RTAUDIO_FLOAT32;
     RtAudio::StreamParameters parameters;
     parameters.deviceId = _dac->getDefaultOutputDevice();
-    parameters.nChannels = 1;
+    parameters.nChannels = 2;
     unsigned int bufferFrames = RT_BUFFER_SIZE;
     try {
       _dac->openStream( &parameters, NULL, format,
@@ -122,8 +126,8 @@ public:
     return "";
   }
 
-  double getMode(int index) {
-    return 0.0;
+  int getMode() {
+    return _mode;
   }
 
   void setMode(int index, double value) {
@@ -166,8 +170,8 @@ public:
       _latent1 = value;
 
     // update the cycle buffer with new parameters
-    // TODO: do this in the audio loop instead
-    decodeCycle();
+    if (!_playing)
+      decodeCycle();
   }
 
   std::string getDataset() {
@@ -324,7 +328,79 @@ public:
 
     return true;
   }
+
+  void fillAudioOutputBufferDecoder(StkFloat *outputBuffer,
+                                    unsigned int nBufferFrames) {
+    const int N=_cycles[0].size(), N1=N-1;
+
+    // 50% overlap add
+    int j = _cyclePos, k=(j+N1/2)%N;
+    double last = _lastSample;
+
+    for (unsigned int i=0; i<nBufferFrames; i++, j++, k++)
+    {
+      // part 1
+      if (j>=N) {
+        _currentCycle = 0;
+        decodeCycle();
+        j = 0;
+      }
+      double d1 = _window[j]*_cycles[0][j];
+
+      // part 2
+      if (k>=N) {
+        _currentCycle = 1;
+        decodeCycle();
+        k = 0;
+      }
+      double d2 = _window[k]*_cycles[1][k];
+
+      // Leaky integrator to block DC drift
+      last = last*0.99 + d1 + d2;
+
+      // Clipping
+      double out = last * _volume;
+      if (out >  1.0) out =  1.0;
+      if (out < -1.0) out = -1.0;
+
+      // Write the final value
+      outputBuffer[i*2+0] = out;
+      outputBuffer[i*2+1] = out;
+    }
+
+    _cyclePos = j;
+    _lastSample = last;
+  }
+
+  void fillAudioOutputBufferSTK(StkFloat *outputBuffer,
+                                unsigned int nBufferFrames) {
+  }
+
+  void fillAudioOutputBuffer(StkFloat *outputBuffer,
+                             unsigned int nBufferFrames) {
+    switch (_mode)
+    {
+    case DECODER:
+      fillAudioOutputBufferDecoder(outputBuffer, nBufferFrames);
+      break;
+    case STK:
+      fillAudioOutputBufferSTK(outputBuffer, nBufferFrames);
+      break;
+    default:
+      memset(outputBuffer, 0, sizeof(StkFloat)*2*nBufferFrames);
+      break;
+    }
+  }
 };
+
+int tick( void *outputBuffer, void *inputBuffer, unsigned int nBufferFrames,
+          double streamTime, RtAudioStreamStatus status, void *dataPointer )
+{
+  Soundersynth *self = static_cast<Soundersynth*>(dataPointer);
+  StkFloat *out = static_cast<StkFloat*>(outputBuffer);
+  self->fillAudioOutputBuffer(out, nBufferFrames);
+  return 0;
+}
 
 void* init_numpy()
 {

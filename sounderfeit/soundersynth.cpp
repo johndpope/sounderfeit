@@ -24,6 +24,24 @@ int tick( void *outputBuffer, void *inputBuffer, unsigned int nBufferFrames,
 
 class Soundersynth
 {
+public:
+  enum MODE {
+    DECODER,
+    STK,
+    LOOKUP,
+  };
+
+  enum PARAM {
+    PRESSURE,
+    POSITION,
+    OTHER,
+  };
+
+  enum SCOPE_STATE {
+    SCOPE_WAITING,
+    SCOPE_COPYING,
+  };
+
 protected:
   int _mode;
   bool _playing;
@@ -54,10 +72,20 @@ protected:
   unsigned int _cyclePos;
   double _lastSample;
 
+  // Signal scope
+  std::vector< std::vector<double> > _scopes;
+  int _currentScope;
+  double _scopeThreshold;
+  double _scopeLastValue;
+  int _scopePosition;
+  SCOPE_STATE _scopeState;
+
 public:
   Soundersynth()
-    : _mode(0), _playing(false), _position(32), _pressure(64)
+    : _mode(DECODER), _playing(false), _position(32), _pressure(64)
     , _volume(0.5), _latent1(0.5), _cyclePos(0), _lastSample(0)
+    , _currentScope(0), _scopeThreshold(0.5), _scopeLastValue(0)
+    , _scopePosition(0), _scopeState(SCOPE_WAITING)
     {
       for (int i=0; i<2; i++) {
         std::vector<double> array;
@@ -84,6 +112,14 @@ public:
       {
         _window[i] = 0.54 - 0.46*cos(2*M_PI*i/N1);
       };
+
+      // Scope buffers
+      for (int i=0; i<2; i++) {
+        std::vector<double> array;
+        array.resize(1024);
+        _scopes.push_back(array);
+      }
+      _currentScope = 0;
     }
 
   virtual ~Soundersynth() {};
@@ -118,18 +154,6 @@ public:
   }
 
   bool playing() { return _playing; }
-
-  enum MODE {
-    DECODER,
-    STK,
-    LOOKUP,
-  };
-
-  enum PARAM {
-    PRESSURE,
-    POSITION,
-    OTHER,
-  };
 
   int modeCount() { return 2; }
 
@@ -419,6 +443,32 @@ public:
     default:
       memset(outputBuffer, 0, sizeof(StkFloat)*2*nBufferFrames);
       break;
+    }
+
+    // Signal scope
+    for (unsigned int i=0; i<nBufferFrames; i++)
+    {
+      double v = outputBuffer[i*2];
+      auto &scope = _scopes[_currentScope];
+      switch (_scopeState)
+      {
+      case SCOPE_WAITING:
+        if (_scopeLastValue < _scopeThreshold && v >= _scopeThreshold) {
+          _scopeState = SCOPE_COPYING;
+          _scopePosition = 0;
+         }
+        else
+          break;
+      case SCOPE_COPYING:
+        if (_scopePosition == scope.size()) {
+          _scopeState = SCOPE_WAITING;
+          _currentScope = (_currentScope+1) % _scopes.size();
+        }
+        else
+          scope[_scopePosition++] = v;
+      }
+
+      _scopeLastValue = v;
     }
   }
 };

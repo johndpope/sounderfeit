@@ -56,7 +56,7 @@ class Waveform(QGraphicsObject):
 
         rect = self.boundingRect()
         path = QPainterPath()
-        cycle = self.synth.currentCycle()
+        cycle = self.synth.lastCycle()
         cycle = detrend(lfilter([1],[-0.99], x=cycle))
         w = rect.width() / 200.0 * 0.8
         l = rect.left() + rect.width() * 0.2 / 2

@@ -199,8 +199,8 @@ public:
   void setDataset(std::string dataset) {
   }
 
-  bpy::object currentCycle() {
-    auto &cyc = _cycles[_currentCycle];
+  bpy::object lastCycle() {
+    auto &cyc = _cycles[(_currentCycle-1+_cycles.size())%_cycles.size()];
     npy_intp shape[1] = { (npy_int)cyc.size() };
     PyObject* obj = PyArray_New(&PyArray_Type, 1, shape, NPY_DOUBLE,
                                 NULL, cyc.data(),
@@ -455,7 +455,7 @@ BOOST_PYTHON_MODULE(soundersynth)
     .def("getParam", &Soundersynth::getParam)
     .def("setDataset", &Soundersynth::setDataset)
     .def("getDataset", &Soundersynth::getDataset)
-    .def("currentCycle", &Soundersynth::currentCycle)
+    .def("lastCycle", &Soundersynth::lastCycle)
     .def("decoderInputSize", &Soundersynth::decoderInputSize)
     .def("decoderHiddenSize", &Soundersynth::decoderHiddenSize)
     .def("decoderOutputSize", &Soundersynth::decoderOutputSize)

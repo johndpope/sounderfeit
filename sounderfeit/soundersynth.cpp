@@ -423,7 +423,7 @@ public:
 
     for (unsigned int i=0; i<nBufferFrames; i++)
     {
-      double out = _bowed.tick() * _volume;
+      double out = _bowed.tick() * _volume * 5;
       if (out >  1.0) out =  1.0;
       if (out < -1.0) out = -1.0;
       outputBuffer[i*2+0] = out;

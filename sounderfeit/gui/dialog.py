@@ -247,7 +247,7 @@ def dialog(synth=None):
         if w.shape[0] != wave.shape[0]:
             window[0] = hamming(wave.shape[0], False)
             w = window[0]
-        spec = np.log(np.abs(np.fft.rfft(wave * w)))
+        spec = np.log(np.abs(np.fft.rfft(wave * w))+0.001)
         spec = (spec + 2) / 12.0
         return spec
     waveformSpectrum = Waveform(getSpectrum)

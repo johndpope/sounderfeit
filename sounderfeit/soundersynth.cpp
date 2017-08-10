@@ -77,7 +77,8 @@ protected:
   int _currentScope;
   double _scopeThreshold;
   double _scopeLastValue;
-  int _scopePosition;
+  double _scopeHighest;
+  unsigned int _scopePosition;
   SCOPE_STATE _scopeState;
 
 public:
@@ -85,7 +86,7 @@ public:
     : _mode(DECODER), _playing(false), _position(32), _pressure(64)
     , _volume(0.5), _latent1(0.5), _cyclePos(0), _lastSample(0)
     , _currentScope(0), _scopeThreshold(0.5), _scopeLastValue(0)
-    , _scopePosition(0), _scopeState(SCOPE_WAITING)
+    , _scopeHighest(0), _scopePosition(0), _scopeState(SCOPE_WAITING)
     {
       for (int i=0; i<2; i++) {
         std::vector<double> array;
@@ -116,7 +117,7 @@ public:
       // Scope buffers
       for (int i=0; i<2; i++) {
         std::vector<double> array;
-        array.resize(1024);
+        array.resize(512);
         _scopes.push_back(array);
       }
       _currentScope = 0;
@@ -456,20 +457,43 @@ public:
         if (_scopeLastValue < _scopeThreshold && v >= _scopeThreshold) {
           _scopeState = SCOPE_COPYING;
           _scopePosition = 0;
+          _scopeHighest = -1000;
          }
-        else
+        else {
+          _scopePosition ++;
+          if (_scopePosition > scope.size()*10)
+          {
+            _scopeThreshold = ((double)rand())/RAND_MAX*2-1;
+            _scopePosition = 0;
+          }
           break;
+        }
       case SCOPE_COPYING:
         if (_scopePosition == scope.size()) {
           _scopeState = SCOPE_WAITING;
           _currentScope = (_currentScope+1) % _scopes.size();
+          _scopeThreshold = _scopeHighest-0.01;
+          _scopePosition = 0;
         }
         else
           scope[_scopePosition++] = v;
+
+        if (v > _scopeHighest)
+          _scopeHighest = v;
       }
 
       _scopeLastValue = v;
     }
+  }
+
+  bpy::object lastScope() {
+    auto &scope = _scopes[(_currentScope-1+_scopes.size())%_scopes.size()];
+    npy_intp shape[1] = { (npy_int)scope.size() };
+    PyObject* obj = PyArray_New(&PyArray_Type, 1, shape, NPY_DOUBLE,
+                                NULL, scope.data(),
+                                0, NPY_ARRAY_CARRAY_RO, NULL);
+    bpy::handle<> arr( obj );
+    return bpy::object(arr);
   }
 };
 
@@ -506,6 +530,7 @@ BOOST_PYTHON_MODULE(soundersynth)
     .def("setDataset", &Soundersynth::setDataset)
     .def("getDataset", &Soundersynth::getDataset)
     .def("lastCycle", &Soundersynth::lastCycle)
+    .def("lastScope", &Soundersynth::lastScope)
     .def("decoderInputSize", &Soundersynth::decoderInputSize)
     .def("decoderHiddenSize", &Soundersynth::decoderHiddenSize)
     .def("decoderOutputSize", &Soundersynth::decoderOutputSize)

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import numpy as np
-from scipy.signal import lfilter, detrend
+from scipy.signal import lfilter, detrend, hamming
 
 from PyQt5.QtCore import (pyqtProperty, pyqtSignal, QDataStream, QDateTime,
         QEvent, QEventTransition, QFile, QIODevice, QParallelAnimationGroup,
@@ -19,13 +19,14 @@ from PyQt5.QtWidgets import (QDialog, QMenu, QMenuBar, QGroupBox,
 
 
 class Waveform(QGraphicsObject):
-    def __init__(self, synth):
+    def __init__(self, getData):
         super(Waveform, self).__init__()
 
         self.m_penColor = QColor(Qt.white)
         self.m_fillColor = QColor(Qt.black)
-        self.synth = synth
+        self.getData = getData
         self.startTimer(66)
+        self.drawBorder = False
 
     def childPositionChanged(self):
         self.prepareGeometryChange()
@@ -55,24 +56,34 @@ class Waveform(QGraphicsObject):
     def paint(self, painter, option, widget):
 
         rect = self.boundingRect()
-        path = QPainterPath()
-        cycle = self.synth.lastCycle()
-        cycle = detrend(lfilter([1],[-0.99], x=cycle))
-        w = rect.width() / 200.0 * 0.8
+        data = self.getData()
+        w = rect.width() / data.shape[0] * 0.8
         l = rect.left() + rect.width() * 0.2 / 2
         h = rect.height() * 1.0
 
         # Coordinate system -- zero line
         painter.setPen(Qt.white)
         painter.drawLine(l, rect.bottom() - h/2,
-                         l+201*w, rect.bottom() - h/2)
+                         l+data.shape[0]*w, rect.bottom() - h/2)
 
-        path.moveTo(l, rect.bottom() - h/2 + cycle[0]*h)
-        for i, c in enumerate(cycle[1:]):
-            path.lineTo(l + (i+1)*w, rect.bottom() - h/2 + c*h)
+        path = QPainterPath()
+        path.moveTo(l, rect.top() + h/2 - data[0]*h)
+        for i, c in enumerate(data[1:]):
+            path.lineTo(l + (i+1)*w, rect.top() + h/2 - c*h)
 
-        painter.setPen(QPen(self.m_penColor, 5.0, Qt.SolidLine, Qt.RoundCap))
+        painter.setPen(QPen(self.m_penColor, 2.0, Qt.SolidLine, Qt.RoundCap))
         painter.drawPath(path)
+
+        if self.drawBorder:
+            path = QPainterPath()
+            path.moveTo(rect.left(), rect.top())
+            path.lineTo(rect.left(), rect.bottom())
+            path.lineTo(rect.right(), rect.bottom())
+            path.lineTo(rect.right(), rect.top())
+            path.lineTo(rect.left(), rect.top())
+
+            painter.setPen(QPen(self.m_penColor, 5.0, Qt.SolidLine, Qt.RoundCap))
+            painter.drawPath(path)
 
 
 class GraphicsView(QGraphicsView):
@@ -207,18 +218,64 @@ def dialog(synth=None):
 
     app = QApplication(sys.argv)
 
-    textItem = QGraphicsTextItem()
-    textItem.setHtml('<font color=\"white\"><b>Waveform</b></font>')
+    cycleText = QGraphicsTextItem()
+    cycleText.setHtml('<font color=\"white\"><b>One Cycle</b></font>')
 
-    waveform = Waveform(synth)
+    scopeText = QGraphicsTextItem()
+    scopeText.setHtml('<font color=\"white\"><b>Oscilloscope</b></font>')
 
-    w = textItem.boundingRect().width()
-    waveformBoundingRect = waveform.mapToScene(waveform.boundingRect()).boundingRect()
-    textItem.setPos(-w / 2.0, waveformBoundingRect.bottom() + 25.0)
+    spectrumText = QGraphicsTextItem()
+    spectrumText.setHtml('<font color=\"white\"><b>Log Spectrum</b></font>')
+
+    def getCycle():
+        cycle = synth.lastCycle()
+        cycle = detrend(lfilter([1],[-1], x=cycle))
+        return cycle
+    waveformCycle = Waveform(getCycle)
+
+    lastScope = [np.zeros(10)]
+    def getScope():
+        scope = synth.lastScope()
+        lastScope[0] = np.copy(scope)
+        return scope/2
+    waveformScope = Waveform(getScope)
+
+    window = [np.zeros(10)]
+    def getSpectrum():
+        wave = lastScope[0]
+        w = window[0]
+        if w.shape[0] != wave.shape[0]:
+            window[0] = hamming(wave.shape[0], False)
+            w = window[0]
+        spec = np.log(np.abs(np.fft.rfft(wave * w)))
+        spec = (spec + 2) / 12.0
+        return spec
+    waveformSpectrum = Waveform(getSpectrum)
+
+    w = cycleText.boundingRect().width()
+    cycleBoundingRect = waveformCycle.mapToScene(waveformCycle.boundingRect())\
+                                     .boundingRect()
+    cycleText.setPos(0, cycleBoundingRect.bottom() + 10.0)
+
+    waveformScope.setPos(0, cycleBoundingRect.bottom() + 100.0)
+    w = scopeText.boundingRect().width()
+    scopeBoundingRect = waveformScope.mapToScene(waveformScope.boundingRect())\
+                                     .boundingRect()
+    scopeText.setPos(0, scopeBoundingRect.bottom() + 10.0)
+
+    waveformSpectrum.setPos(0, scopeBoundingRect.bottom() + 100.0)
+    w = spectrumText.boundingRect().width()
+    spectrumBoundingRect = waveformSpectrum.mapToScene(waveformSpectrum.boundingRect())\
+                                           .boundingRect()
+    spectrumText.setPos(0, spectrumBoundingRect.bottom() + 10.0)
 
     scene = QGraphicsScene()
-    scene.addItem(waveform)
-    scene.addItem(textItem)
+    scene.addItem(waveformCycle)
+    scene.addItem(waveformScope)
+    scene.addItem(waveformSpectrum)
+    scene.addItem(cycleText)
+    scene.addItem(scopeText)
+    scene.addItem(spectrumText)
     scene.setBackgroundBrush(Qt.black)
 
     view = GraphicsView()

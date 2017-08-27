@@ -81,6 +81,18 @@ protected:
   unsigned int _scopePosition;
   SCOPE_STATE _scopeState;
 
+  void initWindow() {
+    const int N=_cycles[0].size(), N1=N-1;
+
+    // Hamming window
+    // https://www.dsprelated.com/freebooks/sasp/Overlap_Add_OLA_STFT_Processing.html
+    _window.resize(N);
+    for (int i=0; i < N; i++)
+    {
+      _window[i] = 0.54 - 0.46*cos(2*M_PI*i/N1);
+    };
+  }
+
 public:
   Soundersynth()
     : _mode(DECODER), _playing(false), _position(32), _pressure(64)
@@ -95,8 +107,6 @@ public:
       }
       _currentCycle = 0;
 
-      const int N=_cycles[0].size(), N1=N-1;
-
       // Setup STK synth
       Stk::setSampleRate(48000);
       _bowed.setFrequency(_bowedFreq);
@@ -106,13 +116,7 @@ public:
       _bowed.controlChange(STK_VOLUME, 110);
       _bowed.noteOn(_bowedFreq, 1.0);
 
-      // Hamming window
-      // https://www.dsprelated.com/freebooks/sasp/Overlap_Add_OLA_STFT_Processing.html
-      _window.resize(N);
-      for (int i=0; i < N; i++)
-      {
-        _window[i] = 0.54 - 0.46*cos(2*M_PI*i/N1);
-      };
+      initWindow();
 
       // Scope buffers
       for (int i=0; i<2; i++) {
@@ -311,6 +315,13 @@ public:
     _b4.clear();
     for (npy_intp i=0; i < dims[0]; i++)
       _b4.push_back(data[i]);
+
+    // ensure cycle buffers are the same size
+    for (auto& cyc : _cycles) {
+      cyc.resize(dims[0]);
+    }
+
+    initWindow();
 
   nope:
     Py_DECREF(arr);

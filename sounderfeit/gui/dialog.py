@@ -100,10 +100,12 @@ class Dialog(QDialog):
     NumGridRows = 3
     NumButtons = 4
 
-    def __init__(self, extra, synth):
+    def __init__(self, extra, synth, decoders, set_decoder):
         super(Dialog, self).__init__()
 
         self.synth = synth
+        self.decoders = decoders
+        self.set_decoder = set_decoder
 
         self.createMenu()
         self.createAudioControls()
@@ -153,11 +155,19 @@ class Dialog(QDialog):
         button.clicked.connect(lambda: self.synth.stop())
         layout.addWidget(button)
 
-        layout2 = QHBoxLayout()
-        button = QRadioButton("Decoder")
-        button.setChecked(True)
-        button.clicked.connect(lambda: self.synth.setMode(0))
-        layout2.addWidget(button)
+        layout2 = QVBoxLayout()
+        for n,d in enumerate(self.decoders):
+            button = QRadioButton(d)
+            button.setChecked(n==0)
+            def make_clicked(d,button):
+                def clicked():
+                    if button.isChecked():
+                        self.set_decoder(d)
+                        print('Decoder set to',d)
+                        self.synth.setMode(0)
+                return clicked
+            button.clicked.connect(make_clicked(d,button))
+            layout2.addWidget(button)
         button = QRadioButton("STK Bowed")
         button.clicked.connect(lambda: self.synth.setMode(1))
         layout2.addWidget(button)
@@ -213,7 +223,7 @@ class Dialog(QDialog):
         latent1_slider.valueChanged.connect(
             lambda: self.synth.setParam(3, latent1_slider.value()/128.0))
 
-def dialog(synth=None):
+def dialog(decoders, set_decoder, synth=None):
     import sys
 
     app = QApplication(sys.argv)
@@ -290,7 +300,7 @@ def dialog(synth=None):
     view.resize(sceneRect.width() + 100, sceneRect.height() + 100)
     view.setSceneRect(sceneRect)
 
-    return Dialog(view, synth).exec_()
+    return Dialog(view, synth, decoders, set_decoder).exec_()
 
 if __name__ == '__main__':
     import sys

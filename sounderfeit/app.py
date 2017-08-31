@@ -15,7 +15,7 @@ def run():
 
     def set_decoder(name):
         filename = dict(decoders)[name]
-        fn = os.path.join(os.path.dirname(__file__),'..','data',filename)
+        fn = os.path.join(os.path.dirname(__file__),'..','weights',filename)
         print(fn)
         weights = pickle.load(open(fn,'rb')) # w3, w4, b3, b4
         synth.setDecoderWeights(weights)

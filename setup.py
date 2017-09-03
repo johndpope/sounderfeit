@@ -29,10 +29,12 @@ setup(
     ],
     ext_modules=[
         Extension("sounderfeit/soundersynth", ["sounderfeit/soundersynth.cpp"],
-                  libraries = ["boost_python-py35","stk"],
-                  include_dirs = [stk_dir + "/include/stk"],
+                  libraries = ["boost_python3","stk"],
+                  include_dirs = [stk_dir + "/include",
+                    '/Users/sinclairs/.local/lib/python3.6/site-packages/numpy/core/include'],
                   library_dirs = [stk_dir + "/lib"],
         )
     ],
     test_suite="tests",
 )
+

@@ -7,9 +7,10 @@ autoencoder.
 
 Software theoretically cross-platform but only tested on Ubuntu 17.04.
 
-## Requires
+## Requires (Linux)
 
 * numpy, scipy, matplotlib: apt-get install python3-numpy
+* boost_python: apt-get install boost_python
 
 Generate data
 
@@ -22,8 +23,27 @@ Training
 
 Running
 
-* Python 3
-* PyQt5: apt-get install python3-pyqt5
+* Python 3: brew install python3
+* PyQt5: apt-get install python-pyqt5
+
+## Requires (Mac OS X)
+
+* Python 3: brew install python3
+* numpy, scipy: pip3 install numpy scipy
+* boost-python: brew install boost-python --with-python3
+
+Generate data
+
+* STK: https://ccrma.stanford.edu/software/stk/
+* h5py: pip3 install h5py
+
+Training
+
+* TensorFlow: http://tensorflow.org/
+
+Running
+
+* PyQt5: brew install pyqt5
 
 ## Build
 

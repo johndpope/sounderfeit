@@ -116,7 +116,7 @@ class Dialog(QDialog):
         mainLayout.setMenuBar(self.menuBar)
         vLayout = QVBoxLayout()
         vLayout.addWidget(self.audioControls)
-        vLayout.addWidget(self.datasetControls)
+        # vLayout.addWidget(self.datasetControls)
         vLayout.addWidget(self.gridGroupBox)
         hLayout = QHBoxLayout()
         vGroupBox = QGroupBox()

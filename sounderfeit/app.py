@@ -7,8 +7,9 @@ import os, pickle
 decoders = [('bowed-D1Z2Y',   'bowed-half-D1Z2Y-decoder.pickle'),
             ('bowed2-D1Z2Y',  'bowed3-half-D1Z2Y-decoder.pickle'),
             ('vowelsD1Z1Y', 'vowels-D1Z1Y-decoder.pickle'),
-            ('vowelsD1Z0Y', 'vowels-D1Z0Y-decoder.pickle'),
-            ('vowelsN1Z0Y', 'vowels-N1Z0Y-decoder.pickle')]
+            # ('vowelsD1Z0Y', 'vowels-D1Z0Y-decoder.pickle'),
+            # ('vowelsN1Z0Y', 'vowels-N1Z0Y-decoder.pickle')
+]
 
 def run():
     synth = Soundersynth()

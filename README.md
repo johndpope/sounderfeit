@@ -7,6 +7,13 @@ autoencoder.
 
 Software theoretically cross-platform but only tested on Ubuntu 17.04.
 
+# Demo
+
+A demo of the user interface and description of the idea and results
+is available at:
+
+https://youtu.be/y1wKMhJdeUw
+
 ## Requires
 
 * numpy, scipy, matplotlib: apt-get install python3-numpy

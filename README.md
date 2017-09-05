@@ -7,6 +7,9 @@ autoencoder.
 
 Software theoretically cross-platform but only tested on Ubuntu 17.04.
 
+(A Mac OS X port is in progress on the "osx" branch, it works but is
+not yet merged so feel free to try it.)
+
 # Demo
 
 A demo of the user interface and description of the idea and results
